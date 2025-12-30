@@ -1,6 +1,15 @@
 import streamlit as st
 import time
 import random
+import os
+
+# Import du modèle de prédiction
+try:
+    from weather_ml_model import predict_weather_state
+    MODEL_AVAILABLE = True
+except ImportError:
+    MODEL_AVAILABLE = False
+    st.warning("⚠ Module de prédiction ML non disponible")
 
 # ===================== CONFIG ===================== #
 st.set_page_config(
@@ -49,6 +58,36 @@ st.markdown("""
         color: #8da9c4;
     }
     
+    /* Weather prediction card */
+    .prediction-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 30px;
+        border-radius: 15px;
+        text-align: center;
+        box-shadow: 0px 5px 20px rgba(102, 126, 234, 0.4);
+        margin: 20px 0;
+    }
+    .prediction-title {
+        font-size: 24px;
+        font-weight: bold;
+        color: white;
+        margin-bottom: 15px;
+    }
+    .prediction-state {
+        font-size: 48px;
+        font-weight: bold;
+        color: #fff;
+        margin: 10px 0;
+    }
+    .prediction-confidence {
+        font-size: 18px;
+        color: #e0e0e0;
+    }
+    .prediction-emoji {
+        font-size: 80px;
+        margin: 15px 0;
+    }
+    
     </style>
 """, unsafe_allow_html=True)
 
@@ -63,6 +102,31 @@ def get_weather_data():
     }
 
 
+def get_weather_emoji(state):
+    """Retourne l'emoji correspondant à l'état météo"""
+    emojis = {
+        "Ensoleillé": "☀️",
+        "Nuageux": "☁️",
+        "Pluvieux": "🌧️",
+        "Inconnu": "❓"
+    }
+    return emojis.get(state, "❓")
+
+
+def get_weather_prediction(temperature, humidity, wind):
+    """Obtient la prédiction ML de l'état météo"""
+    if not MODEL_AVAILABLE:
+        return "N/A", 0
+    
+    try:
+        prediction, probabilities = predict_weather_state(temperature, humidity, wind)
+        confidence = max(probabilities) * 100
+        return prediction, confidence
+    except Exception as e:
+        st.error(f"Erreur de prédiction: {e}")
+        return "Erreur", 0
+
+
 # ===================== HEADER ===================== #
 st.markdown("<h1>🌤 Dashboard Météo • Temps Réel</h1>", unsafe_allow_html=True)
 st.write("Données rafraîchies automatiquement toutes les 4 secondes.")
@@ -74,6 +138,25 @@ while True:
     data = get_weather_data()
 
     with placeholder.container():
+        
+        # Prédiction ML
+        if MODEL_AVAILABLE:
+            prediction, confidence = get_weather_prediction(
+                data['temperature'], 
+                data['humidity'], 
+                data['wind']
+            )
+            
+            emoji = get_weather_emoji(prediction)
+            
+            st.markdown(f"""
+                <div class="prediction-card">
+                    <div class="prediction-title">🤖 Prédiction IA - État de la Météo</div>
+                    <div class="prediction-emoji">{emoji}</div>
+                    <div class="prediction-state">{prediction}</div>
+                    <div class="prediction-confidence">Confiance: {confidence:.1f}%</div>
+                </div>
+            """, unsafe_allow_html=True)
 
         col1, col2, col3 = st.columns(3)
 
