@@ -33,7 +33,7 @@ while True:
                 if "current" in data:
                     # Kafka
                     producer.send("weather_topic", data)
-                    print(f"📤 {city}: {data['current']['temp_c']}°C")
+                    print(f"📤 {city}: {data['current']['temp_c']}°C | 💧 {data['current']['humidity']}% | 🌬 {data['current']['wind_kph']} km/h")
                     
                     # CSV Append
                     with open(CSV_FILE, mode='a', newline='') as file:
@@ -52,4 +52,4 @@ while True:
         except Exception as e:
             print(f"⚠ Error: {e}")
 
-    time.sleep(30)  # Refresh every 30 seconds to avoid hitting API limits too fast with many cities
+    time.sleep(1)  # Refresh every 1 second (Fetching takes ~2s, total cycle ~3s)

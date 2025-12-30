@@ -3,6 +3,14 @@ import pandas as pd
 import time
 import os
 
+# Import du modèle de prédiction
+try:
+    from weather_ml_model import predict_weather_state
+    MODEL_AVAILABLE = True
+except ImportError:
+    MODEL_AVAILABLE = False
+    st.warning("⚠ Module de prédiction ML non disponible")
+
 # ===================== CONFIG ===================== #
 st.set_page_config(
     page_title="Dashboard Météo Temps Réel",
@@ -49,6 +57,36 @@ st.markdown("""
         font-size: 16px;
         color: #8da9c4;
     }
+
+    /* Weather prediction card */
+    .prediction-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 30px;
+        border-radius: 15px;
+        text-align: center;
+        box-shadow: 0px 5px 20px rgba(102, 126, 234, 0.4);
+        margin: 20px 0;
+    }
+    .prediction-title {
+        font-size: 24px;
+        font-weight: bold;
+        color: white;
+        margin-bottom: 15px;
+    }
+    .prediction-state {
+        font-size: 48px;
+        font-weight: bold;
+        color: #fff;
+        margin: 10px 0;
+    }
+    .prediction-confidence {
+        font-size: 18px;
+        color: #e0e0e0;
+    }
+    .prediction-emoji {
+        font-size: 80px;
+        margin: 15px 0;
+    }
     
     </style>
 """, unsafe_allow_html=True)
@@ -73,6 +111,30 @@ def get_latest_data(city_name):
             return None
     return None
 
+def get_weather_emoji(state):
+    """Retourne l'emoji correspondant à l'état météo"""
+    emojis = {
+        "Ensoleillé": "☀️",
+        "Nuageux": "☁️",
+        "Pluvieux": "🌧️",
+        "Inconnu": "❓"
+    }
+    return emojis.get(state, "❓")
+
+
+def get_weather_prediction(temperature, humidity, wind):
+    """Obtient la prédiction ML de l'état météo"""
+    if not MODEL_AVAILABLE:
+        return "N/A", 0
+    
+    try:
+        prediction, probabilities = predict_weather_state(temperature, humidity, wind)
+        confidence = max(probabilities) * 100
+        return prediction, confidence
+    except Exception as e:
+        # st.error(f"Erreur de prédiction: {e}") # Uncomment for debugging
+        return "Erreur", 0
+
 # ===================== SIDEBAR ===================== #
 st.sidebar.header("🌍 Configuration")
 selected_city = st.sidebar.selectbox(
@@ -87,7 +149,7 @@ selected_city = st.sidebar.selectbox(
 
 # ===================== HEADER ===================== #
 st.markdown("<h1>🌤 Dashboard Météo • Temps Réel</h1>", unsafe_allow_html=True)
-st.write("Données rafraîchies automatiquement toutes les 4 secondes.")
+st.write("Données rafraîchies automatiquement toutes les 2 secondes.")
 
 placeholder = st.empty()
 
@@ -107,6 +169,28 @@ while True:
     with placeholder.container():
 
         st.markdown(f"<h2 style='text-align: center;'>📍 {data['city']}</h2>", unsafe_allow_html=True)
+
+        # Prédiction ML
+        # Only run prediction if we have valid numerical data
+        if MODEL_AVAILABLE and data['temperature'] != "--":
+            try:
+                temp = float(data['temperature'])
+                hum = float(data['humidity'])
+                wind = float(data['wind'])
+                
+                prediction, confidence = get_weather_prediction(temp, hum, wind)
+                emoji = get_weather_emoji(prediction)
+                
+                st.markdown(f"""
+                    <div class="prediction-card">
+                        <div class="prediction-title">🤖 Prédiction IA - État de la Météo</div>
+                        <div class="prediction-emoji">{emoji}</div>
+                        <div class="prediction-state">{prediction}</div>
+                        <div class="prediction-confidence">Confiance: {confidence:.1f}%</div>
+                    </div>
+                """, unsafe_allow_html=True)
+            except:
+                pass
 
         col1, col2, col3 = st.columns(3)
 
@@ -137,4 +221,4 @@ while True:
                 </div>
             """, unsafe_allow_html=True)
 
-    time.sleep(4)   # refresh interval
+    time.sleep(2)   # refresh interval
